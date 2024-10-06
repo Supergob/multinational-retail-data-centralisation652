@@ -62,17 +62,17 @@ if __name__ == "__main__":
     user_data_df = extractor.read_rds_table(engine, user_data_table)# READ DATA FROM THE SPECIFIED TABLE
     cleaned_df = DataCleaning.clean_user_data(user_data_df) # CLEAN THE EXTRACTED DATA
     cleaned_card_df = DataCleaning.clean_card_data()
-    #print(cleaned_card_df)
+    cleaned_store_df = DataCleaning.clean_store_data()         #<----- Current task- Uploading store data
     db_connector = database_utils.DatabaseConnector()
     db_connector.upload_to_db(cleaned_card_df, 'dim_card_details', 'sales_db_creds.yaml')
-    #db_connector.upload_to_db()
+    db_connector.upload_to_db(cleaned_store_df, 'dim_store_details','sales_db_creds.yaml')
     #print("Card details uploaded successfully!")
     headers = {"x-api-key":"yFBQbwXe9J3sd6zWVAMrK6lcxxr0q1lr2PT6DDMX"}
     number_of_stores_endpoint = "https://aqj7u5id95.execute-api.eu-west-1.amazonaws.com/prod/number_stores"
     retrieve_stores_endpoint = "https://aqj7u5id95.execute-api.eu-west-1.amazonaws.com/prod/store_details"
     number_of_stores = 450
     
-    print(DataCleaning.clean_store_data(number_of_stores, retrieve_stores_endpoint, headers))
+    #print(DataCleaning.clean_store_data(number_of_stores, retrieve_stores_endpoint, headers))
     
 
 
