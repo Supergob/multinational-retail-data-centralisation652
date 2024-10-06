@@ -33,8 +33,27 @@ class DataCleaning:
         dropped_duplicates['card_number'] = dropped_duplicates['card_number'].apply(lambda x: x if re.match(cc_regex, str(x)) else np.nan)
         cleaned_card_df = dropped_duplicates.dropna(subset=['card_number'])
         return cleaned_card_df
+    @staticmethod
+    def clean_store_data(num_stores, retrieve_stores_endpoint, headers):
+        unclean_store_data = data_extraction.DataExtractor().retrieve_stores_data(num_stores, retrieve_stores_endpoint, headers)
+        raw_data = pd.DataFrame(unclean_store_data)                                                                                # Pull the data 
+        print("Raw data", raw_data.info())
+        raw_data.drop_duplicates(inplace=True)                                                                                     # Removes duplicates
+        print("after dropping duplicates",raw_data.info())
+        raw_data['opening_date'] = pd.to_datetime(raw_data['opening_date'], errors = 'coerce', format = '%Y-%m-%d')                # Convert dates to correct format
+        raw_data['address'] = raw_data['address'].str.replace(r'^\s+|\s+$', '', regex=True)                                        # replaces whitespaces while keeping spaces between house numbers and roads
+        raw_data['locality'] = raw_data['locality'].str.replace(r'^\s+|\s+$', '', regex=True)                                      # same as above
+        address_pattern = re.compile(r'^[a-zA-Z0-9\s,.-]+$')                                                                       # compiles regex for in filtering later  
+        raw_data = raw_data[raw_data['address'].str.match(address_pattern)]                                                        # filters through the adress only keeping what matches our compiled regex                          
+        valid_continents= ["Africa", "Asia", "Europe","America", "North America", "South America", "Oceania", "Antarctica"]
+        raw_data = raw_data[raw_data['continent'].isin(valid_continents)]
+        raw_data.drop('lat', axis=1, inplace = True)                                                                               # Removes 'lat' column 
+        print('Data after removing lat column',raw_data)
+        raw_data.dropna(inplace=True)                                                                                              # Drop missing data
+        cleaned_store_data = raw_data.reset_index(drop=True)
+        return cleaned_store_data.head(20)
 
-
+        
 if __name__ == "__main__":
    
     engine = utilities.engine  # INITIALIZE THE ENGINE USING UTILS MODULE
@@ -46,8 +65,14 @@ if __name__ == "__main__":
     #print(cleaned_card_df)
     db_connector = database_utils.DatabaseConnector()
     db_connector.upload_to_db(cleaned_card_df, 'dim_card_details', 'sales_db_creds.yaml')
-    print("Card details uploaded successfully!")
+    #db_connector.upload_to_db()
+    #print("Card details uploaded successfully!")
+    headers = {"x-api-key":"yFBQbwXe9J3sd6zWVAMrK6lcxxr0q1lr2PT6DDMX"}
+    number_of_stores_endpoint = "https://aqj7u5id95.execute-api.eu-west-1.amazonaws.com/prod/number_stores"
+    retrieve_stores_endpoint = "https://aqj7u5id95.execute-api.eu-west-1.amazonaws.com/prod/store_details"
+    number_of_stores = 450
     
+    print(DataCleaning.clean_store_data(number_of_stores, retrieve_stores_endpoint, headers))
     
 
 
