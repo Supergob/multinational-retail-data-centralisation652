@@ -22,8 +22,8 @@ class DataCleaning:
         dropped_rows['address'] = dropped_rows['address'].apply(lambda x: ''.join(c for c in x if c.isalnum()))
         dropped_rows['email_address'] = dropped_rows['email_address'].apply(lambda x: x.strip() if isinstance(x,str) else np.nan)
         dropped_rows['email_address'].dropna()
-        cleaned_df = dropped_rows
-        return cleaned_df
+        cleaned_user_df = dropped_rows
+        return cleaned_user_df
     @staticmethod
     def clean_card_data():
         card_df =data_extraction.DataExtractor.retrieve_pdf_data('https://data-handling-public.s3.eu-west-1.amazonaws.com/card_details.pdf')
@@ -35,23 +35,23 @@ class DataCleaning:
         return cleaned_card_df
     @staticmethod
     def clean_store_data(num_stores, retrieve_stores_endpoint, headers):
-        unclean_store_data = data_extraction.DataExtractor().retrieve_stores_data(num_stores, retrieve_stores_endpoint, headers)
-        raw_data = pd.DataFrame(unclean_store_data)                                                                                # Pull the data 
-        print("Raw data", raw_data.info())
+        unclean_store_data = data_extraction.DataExtractor().retrieve_stores_data(num_stores, retrieve_stores_endpoint, headers)   # Pull the data 
+        raw_data = pd.DataFrame(unclean_store_data)                                                                                # Convert to dataframe
+        #print("Raw data", raw_data.info())                                                                                        # Debugging steps
         raw_data.drop_duplicates(inplace=True)                                                                                     # Removes duplicates
-        print("after dropping duplicates",raw_data.info())
+        #print("after dropping duplicates",raw_data.info())                                                                        # Debugging steps
         raw_data['opening_date'] = pd.to_datetime(raw_data['opening_date'], errors = 'coerce', format = '%Y-%m-%d')                # Convert dates to correct format
-        raw_data['address'] = raw_data['address'].str.replace(r'^\s+|\s+$', '', regex=True)                                        # replaces whitespaces while keeping spaces between house numbers and roads
-        raw_data['locality'] = raw_data['locality'].str.replace(r'^\s+|\s+$', '', regex=True)                                      # same as above
-        address_pattern = re.compile(r'^[a-zA-Z0-9\s,.-]+$')                                                                       # compiles regex for in filtering later  
-        raw_data = raw_data[raw_data['address'].str.match(address_pattern)]                                                        # filters through the adress only keeping what matches our compiled regex                          
-        valid_continents= ["Africa", "Asia", "Europe","America", "North America", "South America", "Oceania", "Antarctica"]
-        raw_data = raw_data[raw_data['continent'].isin(valid_continents)]
+        raw_data['address'] = raw_data['address'].str.replace(r'^\s+|\s+$', '', regex=True)                                        # Replaces whitespaces while keeping spaces between house numbers and roads
+        raw_data['locality'] = raw_data['locality'].str.replace(r'^\s+|\s+$', '', regex=True)                                      # Same as above
+        address_pattern = re.compile(r'^[a-zA-Z0-9\s,.-]+$')                                                                       # Compiles regex for in filtering later  
+        raw_data = raw_data[raw_data['address'].str.match(address_pattern)]                                                        # Filters through the adress only keeping what matches our compiled regex                          
+        valid_continents= ["Africa", "Asia", "Europe","America", "North America", "South America", "Oceania", "Antarctica"]        # List of valid contintents 
+        raw_data = raw_data[raw_data['continent'].isin(valid_continents)]                                                          # Filters through to keep only valid continents
         raw_data.drop('lat', axis=1, inplace = True)                                                                               # Removes 'lat' column 
-        print('Data after removing lat column',raw_data)
+        #print('Data after removing lat column',raw_data)                                                                           # Debugging step
         raw_data.dropna(inplace=True)                                                                                              # Drop missing data
         cleaned_store_data = raw_data.reset_index(drop=True)
-        return cleaned_store_data.head(20)
+        return cleaned_store_data
 
         
 if __name__ == "__main__":
@@ -60,17 +60,33 @@ if __name__ == "__main__":
     user_data_table = 'legacy_users' # TABLE NAME TO EXTRACT USER DATA
     extractor = data_extraction.DataExtractor()# EXTRACTOR INSTANCE
     user_data_df = extractor.read_rds_table(engine, user_data_table)# READ DATA FROM THE SPECIFIED TABLE
-    cleaned_df = DataCleaning.clean_user_data(user_data_df) # CLEAN THE EXTRACTED DATA
+    
+    # Upload the cleaned user details
+    
+    cleaned__user_df = DataCleaning.clean_user_data(user_data_df)   # CLEAN THE EXTRACTED DATA
+    db_connector = database_utils.DatabaseConnector()        
+    db_connector.upload_to_db(cleaned__user_df, 'dim_users','sales_db_creds.yaml')
+    print("Cleaned user data uploaded successfully!")
+    
+    # Upload the cleaned card details
+    
     cleaned_card_df = DataCleaning.clean_card_data()
-    cleaned_store_df = DataCleaning.clean_store_data()         #<----- Current task- Uploading store data
     db_connector = database_utils.DatabaseConnector()
     db_connector.upload_to_db(cleaned_card_df, 'dim_card_details', 'sales_db_creds.yaml')
-    db_connector.upload_to_db(cleaned_store_df, 'dim_store_details','sales_db_creds.yaml')
-    #print("Card details uploaded successfully!")
+    print('Cleaned card details uploaded succesfully!')
+    # Upload the cleaned store details
+
     headers = {"x-api-key":"yFBQbwXe9J3sd6zWVAMrK6lcxxr0q1lr2PT6DDMX"}
     number_of_stores_endpoint = "https://aqj7u5id95.execute-api.eu-west-1.amazonaws.com/prod/number_stores"
     retrieve_stores_endpoint = "https://aqj7u5id95.execute-api.eu-west-1.amazonaws.com/prod/store_details"
     number_of_stores = 450
+    cleaned_store_df = DataCleaning.clean_store_data(number_of_stores, retrieve_stores_endpoint, headers)         #<----- Current task- Uploading store data
+    db_connector = database_utils.DatabaseConnector()
+    db_connector.upload_to_db(cleaned_store_df, 'dim_store_details','sales_db_creds.yaml')
+    print('Cleaned store details uploaded succesfully!')
+    
+    
+    
     
     #print(DataCleaning.clean_store_data(number_of_stores, retrieve_stores_endpoint, headers))
     
