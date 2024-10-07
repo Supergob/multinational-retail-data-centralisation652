@@ -23,7 +23,7 @@ class DatabaseConnector:
         DATABASE = creds.get('DATABASE') or creds.get('RDS_DATABASE')
         upload_string = f"{DATABASE_TYPE}+{DBAPI}://{USERNAME}:{PASSWORD}@{HOST}:{PORT}/{DATABASE}"
         upload_engine = create_engine(upload_string)       
-        df.to_sql('dim_users',upload_engine, if_exists = 'replace', index=False)
+        df.to_sql(table_name,upload_engine, if_exists = 'replace', index=False)
 
 if __name__ == "__main__":
     
@@ -34,5 +34,5 @@ if __name__ == "__main__":
     cleaned_df = data_cleaning.DataCleaning.clean_user_data(user_data_df)
     #print(cleaned_df)
     db_connector = DatabaseConnector()
-    db_connector.upload_to_db(cleaned_df, 'dim_users', 'sales_db_creds.yaml')
+    db_connector.upload_to_db('sales_db_creds.yaml')
     print("Data uploaded successfully!")
