@@ -48,54 +48,92 @@ class DataCleaning:
         valid_continents= ["Africa", "Asia", "Europe","America", "North America", "South America", "Oceania", "Antarctica"]        # List of valid contintents 
         raw_data = raw_data[raw_data['continent'].isin(valid_continents)]                                                          # Filters through to keep only valid continents
         raw_data.drop('lat', axis=1, inplace = True)                                                                               # Removes 'lat' column 
-        #print('Data after removing lat column',raw_data)                                                                           # Debugging step
+        #print('Data after removing lat column',raw_data)                                                                          # Debugging step
         raw_data.dropna(inplace=True)                                                                                              # Drop missing data
         cleaned_store_data = raw_data.reset_index(drop=True)
         return cleaned_store_data
-
+    @staticmethod
+    def convert_product_weights(extracted_s3_data):
+        weights = extracted_s3_data['weight']
+        #print(weights)
+        weights_in_kg = []
+        for i in weights:
+            if isinstance(i, float):                                            # If the value is a float, assume it's already in kg
+                weights_in_kg.append(f"{i}kg")
+            elif isinstance(i, str):                                            # If the value is a string, process it
+                                                                                # Clean up the string to extract the numeric value
+                match = re.findall(r'\d+\.?\d*', i)
+                if match:
+                    value_of_weights = float(match[0])  
+                
+                if 'kg' in i:
+                    weights_in_kg.append(f"{value_of_weights}kg")
+                elif 'g' in i:
+                    weights_in_kg.append(f"{value_of_weights / 1000}kg")
+                elif 'ml' in i:
+                    weights_in_kg.append(f"{value_of_weights / 1000}kg")
+                else:
+                    weights_in_kg.append(np.nan)
         
+        extracted_s3_data['weight'] = weights_in_kg
+        extracted_s3_data.dropna(subset = ['weight'], inplace = True)
+        cleaned_product_weights = extracted_s3_data
+        return cleaned_product_weights
+          
+    @staticmethod
+    def clean_products_data(extracted_s3_data):
+        raw_data = DataCleaning.convert_product_weights(extracted_s3_data)
+        raw_data['date_added'] = pd.to_datetime(raw_data['date_added'], errors = 'coerce', format = '%Y-%m-%d')
+        print('number of rows left ', raw_data.info())
+        raw_data.dropna(inplace = True)
+        print('number after dropping na ', raw_data.info())
+        raw_data.drop_duplicates(inplace = True)
+       
+        raw_data.drop('Unnamed: 0', axis = 1 , inplace = True)
+        cleaned_products_data = raw_data
+        return cleaned_products_data
+                                                                                                                                            
+            
 if __name__ == "__main__":
    
-    engine = utilities.engine  # INITIALIZE THE ENGINE USING UTILS MODULE
-    user_data_table = 'legacy_users' # TABLE NAME TO EXTRACT USER DATA
-    extractor = data_extraction.DataExtractor()# EXTRACTOR INSTANCE
-    user_data_df = extractor.read_rds_table(engine, user_data_table)# READ DATA FROM THE SPECIFIED TABLE
+    engine = utilities.engine                                                                                                                   # INITIALIZE THE ENGINE USING UTILS MODULE
+    user_data_table = 'legacy_users'                                                                                                            # TABLE NAME TO EXTRACT USER DATA
+    extractor = data_extraction.DataExtractor()                                                                                                 # EXTRACTOR INSTANCE
+    user_data_df = extractor.read_rds_table(engine, user_data_table)                                                                            # READ DATA FROM THE SPECIFIED TABLE
     
     # Upload the cleaned user details
     
-    cleaned__user_df = DataCleaning.clean_user_data(user_data_df)   # CLEAN THE EXTRACTED DATA
-    db_connector = database_utils.DatabaseConnector()        
-    db_connector.upload_to_db(cleaned__user_df, 'dim_users','sales_db_creds.yaml')
-    print("Cleaned user data uploaded successfully!")
+    # cleaned__user_df = DataCleaning.clean_user_data(user_data_df)                                                                               # CLEAN THE EXTRACTED DATA
+    # db_connector = database_utils.DatabaseConnector()        
+    # db_connector.upload_to_db(cleaned__user_df, 'dim_users','sales_db_creds.yaml')
+    # print("Cleaned user data uploaded successfully!")
     
-    # Upload the cleaned card details
+    # # Upload the cleaned card details
     
-    cleaned_card_df = DataCleaning.clean_card_data()
-    db_connector = database_utils.DatabaseConnector()
-    db_connector.upload_to_db(cleaned_card_df, 'dim_card_details', 'sales_db_creds.yaml')
-    print('Cleaned card details uploaded succesfully!')
-    # Upload the cleaned store details
+    # cleaned_card_df = DataCleaning.clean_card_data()
+    # db_connector = database_utils.DatabaseConnector()
+    # db_connector.upload_to_db(cleaned_card_df, 'dim_card_details', 'sales_db_creds.yaml')
+    # print('Cleaned card details uploaded succesfully!')
+    
+    # # Upload the cleaned store details
 
-    headers = {"x-api-key":"yFBQbwXe9J3sd6zWVAMrK6lcxxr0q1lr2PT6DDMX"}
-    number_of_stores_endpoint = "https://aqj7u5id95.execute-api.eu-west-1.amazonaws.com/prod/number_stores"
-    retrieve_stores_endpoint = "https://aqj7u5id95.execute-api.eu-west-1.amazonaws.com/prod/store_details"
-    number_of_stores = 450
-    cleaned_store_df = DataCleaning.clean_store_data(number_of_stores, retrieve_stores_endpoint, headers)         #<----- Current task- Uploading store data
+    # headers = {"x-api-key":"yFBQbwXe9J3sd6zWVAMrK6lcxxr0q1lr2PT6DDMX"}
+    # number_of_stores_endpoint = "https://aqj7u5id95.execute-api.eu-west-1.amazonaws.com/prod/number_stores"
+    # retrieve_stores_endpoint = "https://aqj7u5id95.execute-api.eu-west-1.amazonaws.com/prod/store_details"
+    # number_of_stores = 450
+    # cleaned_store_df = DataCleaning.clean_store_data(number_of_stores, retrieve_stores_endpoint, headers)         
+    # db_connector = database_utils.DatabaseConnector()
+    # db_connector.upload_to_db(cleaned_store_df, 'dim_store_details','sales_db_creds.yaml')
+    # print('Cleaned store details uploaded succesfully!')
+
+    # # Upload the cleaned products data
+    
+    address = 's3://data-handling-public/products.csv'
+    extracted_s3_data = data_extraction.DataExtractor.extract_from_s3(address)
+    cleaned_product_data = DataCleaning.clean_products_data(extracted_s3_data)
     db_connector = database_utils.DatabaseConnector()
-    db_connector.upload_to_db(cleaned_store_df, 'dim_store_details','sales_db_creds.yaml')
-    print('Cleaned store details uploaded succesfully!')
-    
-    
+    db_connector.upload_to_db(cleaned_product_data, 'dim_products','sales_db_creds.yaml')
+    print('Cleaned product details uploaded succesfully')
     
     
     #print(DataCleaning.clean_store_data(number_of_stores, retrieve_stores_endpoint, headers))
-    
-
-
-
-
-
-
-
-
-
