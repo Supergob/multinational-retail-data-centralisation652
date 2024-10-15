@@ -96,18 +96,31 @@ class DataCleaning:
         return cleaned_products_data
                                                                                                                                             
     @staticmethod
-    def clean_orders_data(orders_data_table):
-        raw_data = data_extraction.DataExtractor.read_rds_table(utilities.engine, orders_data_table)
-        print(len(raw_data.index))       
+    def clean_orders_data(orders_data):
+        raw_data = data_extraction.DataExtractor().read_rds_table(utilities.engine, orders_data)
+        print('rows left ', len(raw_data.index))
+        raw_data.drop('first_name', axis = 1, inplace = True)
+        
+        
 if __name__ == "__main__":
    
     engine = utilities.engine                                                                                                                   # INITIALIZE THE ENGINE USING UTILS MODULE
-    user_data_table = 'legacy_users'                                                                                                            # TABLE NAME TO EXTRACT USER DATA
-    extractor = data_extraction.DataExtractor()                                                                                                 # EXTRACTOR INSTANCE
-    user_data_df = extractor.read_rds_table(engine, user_data_table)                                                                            # READ DATA FROM THE SPECIFIED TABLE
+    #user_data_table = 'legacy_users'                                                                                                            # TABLE NAME TO EXTRACT USER DATA
     data_table= 'orders_table'
-    orders_data_table = extractor.read_rds_table(engine, data_table)
+    extractor = data_extraction.DataExtractor()                                                                                                 # EXTRACTOR INSTANCE
+    
+    #user_data_df = extractor.read_rds_table(engine, user_data_table)                                                                            # READ DATA FROM THE SPECIFIED TABLE
+    
+    orders_data = extractor.read_rds_table(engine, data_table)
+    
+   
+    
+    
+    print(DataCleaning.clean_orders_data(orders_data))
+    #orders_data_table = data_extraction.DataExtractor.read_rds_table(engine, data_table)
     # Upload the cleaned user details
+    # def clean_user_data(user_data_df):
+    # df_to_clean = data_extraction.DataExtractor().read_rds_table(utilities.engine, user_data_df)
     
     # cleaned__user_df = DataCleaning.clean_user_data(user_data_df)                                                                               # CLEAN THE EXTRACTED DATA
     # db_connector = database_utils.DatabaseConnector()        
@@ -136,10 +149,12 @@ if __name__ == "__main__":
     
     # address = 's3://data-handling-public/products.csv'
     # extracted_s3_data = data_extraction.DataExtractor.extract_from_s3(address)
+    
     # cleaned_product_data = DataCleaning.clean_products_data(extracted_s3_data)
     # db_connector = database_utils.DatabaseConnector()
     # db_connector.upload_to_db(cleaned_product_data, 'dim_products','sales_db_creds.yaml')
     # print('Cleaned product details uploaded succesfully')
     
-    
-    print(DataCleaning.clean_orders_data(engine, data_table))
+    # test_orders = DataCleaning.clean_orders_data(orders_data)
+    # db_connector = database_utils.DatabaseConnector()
+    # db_connector.upload_to_db(test_orders,'testing','sales_db_creds.yaml')
