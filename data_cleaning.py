@@ -58,9 +58,10 @@ class DataCleaning:
         #print(weights)
         weights_in_kg = []
         for i in weights:
-            if isinstance(i, float):                                            # If the value is a float, assume it's already in kg
+            if isinstance(i, (float, int)):                                            # If the value is a float, assume it's already in kg
                 weights_in_kg.append(f"{i}kg")
-            elif isinstance(i, str):                                            # If the value is a string, process it
+            elif isinstance(i, (str)):
+                                                          # If the value is a string, process it
                                                                                 # Clean up the string to extract the numeric value
                 match = re.findall(r'\d+\.?\d*', i)
                 if match:
@@ -74,7 +75,8 @@ class DataCleaning:
                     weights_in_kg.append(f"{value_of_weights / 1000}kg")
                 else:
                     weights_in_kg.append(np.nan)
-        
+                 
+    
         extracted_s3_data['weight'] = weights_in_kg
         extracted_s3_data.dropna(subset = ['weight'], inplace = True)
         cleaned_product_weights = extracted_s3_data
@@ -84,23 +86,27 @@ class DataCleaning:
     def clean_products_data(extracted_s3_data):
         raw_data = DataCleaning.convert_product_weights(extracted_s3_data)
         raw_data['date_added'] = pd.to_datetime(raw_data['date_added'], errors = 'coerce', format = '%Y-%m-%d')
-        print('number of rows left ', raw_data.info())
-        raw_data.dropna(inplace = True)
-        print('number after dropping na ', raw_data.info())
+        print('number of rows left ', len(raw_data.index))
+        raw_data.dropna(inplace=True)
+        print('number of rows left ', len(raw_data.index))
         raw_data.drop_duplicates(inplace = True)
-       
+        print('number of rows left ', len(raw_data.index))
         raw_data.drop('Unnamed: 0', axis = 1 , inplace = True)
         cleaned_products_data = raw_data
         return cleaned_products_data
                                                                                                                                             
-            
+    @staticmethod
+    def clean_orders_data(orders_data_table):
+        raw_data = data_extraction.DataExtractor.read_rds_table(utilities.engine, orders_data_table)
+        print(len(raw_data.index))       
 if __name__ == "__main__":
    
     engine = utilities.engine                                                                                                                   # INITIALIZE THE ENGINE USING UTILS MODULE
     user_data_table = 'legacy_users'                                                                                                            # TABLE NAME TO EXTRACT USER DATA
     extractor = data_extraction.DataExtractor()                                                                                                 # EXTRACTOR INSTANCE
     user_data_df = extractor.read_rds_table(engine, user_data_table)                                                                            # READ DATA FROM THE SPECIFIED TABLE
-    
+    data_table= 'orders_table'
+    orders_data_table = extractor.read_rds_table(engine, data_table)
     # Upload the cleaned user details
     
     # cleaned__user_df = DataCleaning.clean_user_data(user_data_df)                                                                               # CLEAN THE EXTRACTED DATA
@@ -128,12 +134,12 @@ if __name__ == "__main__":
 
     # # Upload the cleaned products data
     
-    address = 's3://data-handling-public/products.csv'
-    extracted_s3_data = data_extraction.DataExtractor.extract_from_s3(address)
-    cleaned_product_data = DataCleaning.clean_products_data(extracted_s3_data)
-    db_connector = database_utils.DatabaseConnector()
-    db_connector.upload_to_db(cleaned_product_data, 'dim_products','sales_db_creds.yaml')
-    print('Cleaned product details uploaded succesfully')
+    # address = 's3://data-handling-public/products.csv'
+    # extracted_s3_data = data_extraction.DataExtractor.extract_from_s3(address)
+    # cleaned_product_data = DataCleaning.clean_products_data(extracted_s3_data)
+    # db_connector = database_utils.DatabaseConnector()
+    # db_connector.upload_to_db(cleaned_product_data, 'dim_products','sales_db_creds.yaml')
+    # print('Cleaned product details uploaded succesfully')
     
     
-    #print(DataCleaning.clean_store_data(number_of_stores, retrieve_stores_endpoint, headers))
+    print(DataCleaning.clean_orders_data(engine, data_table))
