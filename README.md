@@ -46,7 +46,9 @@ To set up and run this project, you will need to follow these steps:
 ## File Structure
 
 RetailProject/
+
 │
+
 ├── data_extraction.py       # Contains methods to extract data from different sources
 
 ├── data_cleaning.py         # Contains methods to clean and process data
