@@ -48,8 +48,13 @@ To set up and run this project, you will need to follow these steps:
 RetailProject/
 │
 ├── data_extraction.py       # Contains methods to extract data from different sources
+
 ├── data_cleaning.py         # Contains methods to clean and process data
+
 ├── database_utils.py        # Contains methods for interacting with the database
+
 ├── utilities.py             # Helper methods like reading database credentials
+
 ├── README.md                # Project description and instructions
+
 └── requirements.txt         # List of required packages
