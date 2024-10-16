@@ -31,7 +31,7 @@ To set up and run this project, you will need to follow these steps:
 
 1. Cloning the repository
 2. Installing the required Python Packages
-3. Set up your dabasa credentials in a YAML file
+3. Set up your dabasase credentials in a YAML file
 4. Running the project in your environment
 
 ## Usage Instructions
